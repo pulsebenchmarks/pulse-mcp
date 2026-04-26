@@ -1,0 +1,39 @@
+{
+  "name": "@pulsebenchmarks/pulse-mcp",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "description": "Open compute-pricing MCP server — daily GPU and inference-token medians, free under CC-BY 4.0.",
+  "homepage": "https://pulsebenchmarks.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pulsebenchmarks/pulse-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pulsebenchmarks/pulse-mcp/issues",
+    "email": "methodology@pulsebenchmarks.com"
+  },
+  "author": "Henry Bennett <methodology@pulsebenchmarks.com>",
+  "license": "Apache-2.0",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "compute-pricing",
+    "gpu",
+    "pricing-data",
+    "cloud",
+    "ai-infrastructure",
+    "cloudflare-workers"
+  ],
+  "files": [
+    "functions/",
+    "examples/",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "scripts": {
+    "check": "node --check functions/mcp.js",
+    "smoke": "curl -fsS https://pulsebenchmarks.com/mcp | head -c 400"
+  }
+}
