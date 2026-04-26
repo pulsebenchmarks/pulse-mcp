@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.pulsebenchmarks/pulse-mcp",
+  "title": "Pulse Compute-Pricing",
+  "description": "Open compute-pricing MCP server — daily GPU and inference-token medians, free under CC-BY 4.0.",
+  "repository": {
+    "url": "https://github.com/pulsebenchmarks/pulse-mcp",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://pulsebenchmarks.com/mcp"
+    }
+  ]
+}
