@@ -8,9 +8,19 @@ on:
   schedule:
     - cron: "17 6 * * *"
 
+# Cancel any earlier still-queued or in-flight run for the same ref. Stops
+# scheduled crons from stacking up behind a slow runner allocation, which
+# was the cause of past silent "cancelled" job pages.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    # Fail fast if a runner can't be allocated, instead of sitting in the
+    # queue for 15 min before GitHub auto-cancels.
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,10 +28,45 @@ jobs:
           node-version: "20"
       - name: Syntax check mcp.js
         run: node --check functions/mcp.js
-      - name: Smoke test live endpoint
+      - name: Smoke test GET /mcp discovery payload
         run: |
           set -euo pipefail
-          body=$(curl -fsS https://pulsebenchmarks.com/mcp)
+          body=$(curl -fsS --max-time 15 https://pulsebenchmarks.com/mcp)
           echo "$body" | head -c 400
-          name=$(printf '%s' "$body" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{console.log(JSON.parse(s).name)})")
-          test "$name" = "pulse"
+          echo
+          node -e '
+            let s=""; process.stdin.on("data",d=>s+=d); process.stdin.on("end",()=>{
+              const j = JSON.parse(s);
+              const KNOWN = ["2024-11-05","2025-03-26","2025-06-18","2025-11-25"];
+              const TOOLS = ["list_indices","get_series","latest_value","get_status","compare_indices"];
+              const fail = (m) => { console.error("FAIL:", m); process.exit(1); };
+              if (j.name !== "pulse") fail("name must be \"pulse\", got " + JSON.stringify(j.name));
+              if (j.transport !== "streamable-http") fail("transport must be \"streamable-http\", got " + JSON.stringify(j.transport));
+              if (!KNOWN.includes(j.protocol_version)) fail("protocol_version not in known list: " + j.protocol_version);
+              if (j.mcp_endpoint !== "https://pulsebenchmarks.com/mcp") fail("mcp_endpoint mismatch: " + j.mcp_endpoint);
+              if (!Array.isArray(j.tools) || j.tools.length !== TOOLS.length) fail("expected " + TOOLS.length + " tools, got " + (j.tools && j.tools.length));
+              const got = new Set(j.tools.map(t => t.name));
+              for (const t of TOOLS) if (!got.has(t)) fail("missing tool: " + t);
+              console.log("OK: name=" + j.name + " protocol=" + j.protocol_version + " transport=" + j.transport + " tools=" + j.tools.length);
+            });
+          ' <<< "$body"
+      - name: Smoke test JSON-RPC initialize
+        run: |
+          set -euo pipefail
+          resp=$(curl -fsS --max-time 15 -X POST -H "content-type: application/json" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+            https://pulsebenchmarks.com/mcp)
+          echo "$resp" | head -c 400
+          echo
+          node -e "
+            let s=''; process.stdin.on('data',d=>s+=d); process.stdin.on('end',()=>{
+              const j = JSON.parse(s);
+              if (j.error) { console.error('FAIL: rpc error', j.error); process.exit(1); }
+              const r = j.result || {};
+              const KNOWN = ['2024-11-05','2025-03-26','2025-06-18','2025-11-25'];
+              if (!KNOWN.includes(r.protocolVersion)) { console.error('FAIL: protocolVersion not in known list:', r.protocolVersion); process.exit(1); }
+              if (!r.serverInfo || r.serverInfo.name !== 'pulse') { console.error('FAIL: serverInfo.name not pulse:', r.serverInfo); process.exit(1); }
+              if (!r.capabilities || !r.capabilities.tools) { console.error('FAIL: tools capability missing'); process.exit(1); }
+              console.log('OK: initialize protocolVersion=' + r.protocolVersion);
+            });
+          " <<< "$resp"
