@@ -15,7 +15,7 @@
 // MCP "content" of type "text" containing the JSON. The MCP layer is
 // a thin protocol wrapper; the data layer is unchanged.
 
-const PROTOCOL_VERSION = "2024-11-05";
+const PROTOCOL_VERSION = "2025-06-18";
 const SERVER_INFO = { name: "pulse", version: "1.0.0", title: "Pulse Compute-Pricing" };
 
 const SERIES_SLUGS = [
@@ -262,7 +262,7 @@ export async function onRequest({ request }) {
     return jsonResponse({
       ...SERVER_INFO,
       protocol_version: PROTOCOL_VERSION,
-      transport: "http",
+      transport: "streamable-http",
       mcp_endpoint: new URL("/mcp", request.url).toString(),
       tools: TOOLS.map(t => ({ name: t.name, description: t.description })),
       docs: "https://pulsebenchmarks.com/for-ai-agents/",
